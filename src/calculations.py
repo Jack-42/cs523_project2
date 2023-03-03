@@ -12,7 +12,7 @@ Description:
 
 def main():
     # calculate number of synonymous/non-synonymous changes
-    df = pd.read_csv("data/codons.txt", sep='\t')
+    df = pd.read_csv("../data/codons.txt", sep='\t')
     df["Codon"] = df["Codon"].map(lambda x: x.replace("T", "U"))
     df = df.rename({'    AminoAcid': "AminoAcid"}, axis="columns")
     mp = {}
