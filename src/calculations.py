@@ -49,9 +49,9 @@ def calc_non_synom_freqs():
     mp_df.to_csv("../data/non_synom_freqs.csv", index=False)
 
 
-def batched_non_synom_freqs():
+def averaged_non_synom_freqs():
     """
-    Calculate frequency of synonymous/non-synonymous changes and
+    Calculate averaged frequencies of non-synonymous changes and
     save result to a csv file.
     :return: Non
     """
@@ -111,15 +111,15 @@ def cov19_nt_freqs(fasta_pth: str):
         freqs[nt] = genome.count(nt) / genome_len
         total += freqs[nt]
     assert total == 1.0
+    df = pd.DataFrame(freqs.items(), columns=["Nucleotide", "Frequency"])
+    df.to_csv("../data/covid_freqs.csv", index=False)
     return freqs
 
 
 if __name__ == "__main__":
-    batched_non_synom_freqs()
-    """
-    calc_non_synom_freqs()
+    averaged_non_synom_freqs()
+    # calc_non_synom_freqs()
     freqs = cov19_nt_freqs("../data/covid_seq.fasta")
 
     rounded_freqs = {k: np.round(v, decimals=4) for k, v in freqs.items()}
     print(rounded_freqs)
-    """
