@@ -1,3 +1,5 @@
+import pandas as pd
+import itertools
 import plotly.graph_objects as go
 import networkx as nx
 import numpy as np
@@ -10,6 +12,96 @@ Description:
     Script used to generate neutral network and to display a random
     walk from the network (part 2).
 """
+
+
+def generate_synom_df() -> pd.DataFrame:
+    """
+    Generate Pandas Dataframe containing all synonymous mutations.
+    Will have 3 columns, "BaseCodon", "Mutation", and "Position"
+    :return: pd.DataFrame containing synom mutations (codon-wise)
+    """
+    df = pd.read_csv("../data/codons.txt", sep='\t')
+    df = df.rename({'    AminoAcid': "AminoAcid"}, axis="columns")
+    base_codons = []
+    mut_nts = []
+    positions = []
+    nucleotides = ["A", "C", "G", "T"]
+    for base, mutant in itertools.product(nucleotides, nucleotides):
+        if base == mutant:
+            continue
+        for i in range(0, 3):
+            df_sub = df[
+                df["Codon"].map(lambda x: True if x[i] == base else False)]
+            # df_sub = df[df["Codon"].str.startswith(base)]
+            df_mut = pd.DataFrame({})
+            df_mut["Codon"] = df_sub["Codon"].map(
+                lambda x: x[:i] + x[i].replace(base, mutant) + x[i + 1:])
+            # see where amino acid changed
+            for j in range(len(df_mut["Codon"])):
+                cdn = df_mut["Codon"].iloc[j]
+                new_acid = df[df["Codon"] == cdn]["AminoAcid"].iloc[0]
+                old_acid = df_sub["AminoAcid"].iloc[j]
+                if new_acid == old_acid:
+                    base_codon = cdn[:i] + base + cdn[i + 1:]
+                    base_codons.append(base_codon)
+                    mut_nts.append(mutant)
+                    positions.append(i)
+    mp_df = pd.DataFrame({"BaseCodon": base_codons, "Mutation": mut_nts, "Position": positions})
+    # remove duplicates
+    mp_df = mp_df.drop_duplicates()
+    return mp_df
+
+
+def get_codon(seq: str, i: int):
+    """
+    Get the 3-letter codon from a given position
+    :param seq: str, the full genome
+    :param i: int, the position
+    :return: str, the codon
+    """
+    codon_index = i - (i % 3)
+    return seq[codon_index: codon_index + 3]
+
+
+def generate_synom_mut(seq: str, synom_df: pd.DataFrame, exclude_pos=None):
+    """
+    Generate a synonymous mutation for the given sequence.
+    :param seq: str, genome
+    :param synom_df: pd.DataFrame, output of generate_synom_df()
+    :param exclude_pos: list (optional), positions mutation not allowed for
+    :return: str, mutated (but synonymous) genome
+    """
+    # about 1/4 of mutations are synonymous
+    if exclude_pos is None:
+        exclude_pos = []
+    mutated_seq = list(seq)
+    r_idx = np.random.randint(0, len(seq))
+    base_cdn = get_codon(seq, r_idx)
+    if r_idx in exclude_pos:
+        # this is a bad way to prevent the same position from being mutated
+        # watch out for infinite loops
+        return generate_synom_mut(seq, synom_df, exclude_pos)
+    sub_df = synom_df.loc[(synom_df["BaseCodon"] == base_cdn) & (synom_df["Position"] == (r_idx % 3))]
+    if len(sub_df) == 0:
+        # watch out for infinite loops
+        return generate_synom_mut(seq, synom_df, exclude_pos)
+    mut_nt = sub_df["Mutation"].sample(n=1).iloc[0]
+    mutated_seq[r_idx] = mut_nt
+    mutated_seq = ''.join(mutated_seq)  # back to string
+    return mutated_seq, r_idx
+
+
+def generate_neutral_net(base_seq: str, n_jumps: int, nodes_per_jump: int):
+    """
+    Generate a neutral network with a given number of jumps
+    :param base_seq: str, the base genome
+    :param n_jumps: int, number of jumps
+    :param nodes_per_jump: int, mutations for each jump
+    :return: nx.Graph object representing the neutral network
+    """
+    net = nx.Graph()
+
+    return net
 
 
 def generate_mut(seq: str, k: int, exclude_pos=[]):
@@ -28,6 +120,8 @@ def generate_mut(seq: str, k: int, exclude_pos=[]):
     for i in range(len(r_indices)):
         r_idx = r_indices[i]
         while r_idx in r_indices[:i] or r_idx in exclude_pos:
+            # this is a bad way to prevent the same position from being mutated
+            # watch out for infinite loops
             r_idx = np.random.randint(0, len(seq))
         base_nt = seq[r_idx]
         mut_nts = [x for x in nts if x != base_nt]
@@ -146,4 +240,9 @@ def generate_network(base_seq: str, n_muts_per: int, n_variants_away: int):
 
 
 if __name__ == "__main__":
-    generate_network("ACGTACGGTAAG", 3, 4)
+    # generate_network("ACGTACGGTAAG", 3, 4)
+    seq = "ACGTACGGTAAG"
+    synom_df = generate_synom_df()
+    mut, idx = generate_synom_mut(seq, synom_df)
+    print(seq)
+    print(mut, idx)

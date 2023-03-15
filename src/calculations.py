@@ -10,45 +10,6 @@ Description:
 """
 
 
-def calc_non_synom_freqs():
-    """
-    Calculate frequency of synonymous/non-synonymous changes and
-    save result to a csv file.
-    :return: Non
-    """
-    df = pd.read_csv("../data/codons.txt", sep='\t')
-    df = df.rename({'    AminoAcid': "AminoAcid"}, axis="columns")
-    mp = {}
-    nucleotides = ["A", "C", "G", "T"]
-    for base, mutant in itertools.product(nucleotides, nucleotides):
-        if base == mutant:
-            continue
-        synom = 0
-        non_synom = 0
-        for i in range(0, 3):
-            df_sub = df[
-                df["Codon"].map(lambda x: True if x[i] == base else False)]
-            # df_sub = df[df["Codon"].str.startswith(base)]
-            df_mut = pd.DataFrame({})
-            df_mut["Codon"] = df_sub["Codon"].map(
-                lambda x: x[:i] + x[i].replace(base, mutant) + x[i + 1:])
-            # see where amino acid changed
-            for j in range(len(df_mut["Codon"])):
-                cdn = df_mut["Codon"].iloc[j]
-                new_acid = df[df["Codon"] == cdn]["AminoAcid"].iloc[0]
-                old_acid = df_sub["AminoAcid"].iloc[j]
-                if new_acid == old_acid:
-                    synom += 1
-                else:
-                    non_synom += 1
-        percent_non_synom = non_synom / (synom + non_synom)
-        key = "%s:%s" % (base, mutant)
-        mp[key] = percent_non_synom
-    mp_df = pd.DataFrame(mp.items(), columns=["Base:Mut", "Freq"])
-    mp_df["Freq"] = mp_df["Freq"].map(lambda x: np.round(x, decimals=4))
-    mp_df.to_csv("../data/non_synom_freqs.csv", index=False)
-
-
 def averaged_non_synom_freqs():
     """
     Calculate averaged frequencies of non-synonymous changes and
