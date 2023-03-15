@@ -5,6 +5,8 @@ import networkx as nx
 import numpy as np
 import queue
 
+from utils import load_covid_seq
+
 """
 @author Jack Ringer
 Date: 3/5/2023
@@ -100,51 +102,7 @@ def generate_neutral_net(base_seq: str, n_jumps: int, nodes_per_jump: int):
     :return: nx.Graph object representing the neutral network
     """
     net = nx.Graph()
-
-    return net
-
-
-def generate_mut(seq: str, k: int, exclude_pos=[]):
-    """
-    Generate a mutated sequence from the input.
-    :param seq: str, the base sequence
-    :param k: int, the number of mutations to apply
-    :param exclude_pos: list(optional), positions to not apply
-        any mutation to
-    :return: str, the mutated sequence
-    """
-    nts = ["A", "C", "G", "T"]
-    r_indices = np.random.randint(0, len(seq), size=k)
-    mutated_seq = list(seq)
-    positions_used = []
-    for i in range(len(r_indices)):
-        r_idx = r_indices[i]
-        while r_idx in r_indices[:i] or r_idx in exclude_pos:
-            # this is a bad way to prevent the same position from being mutated
-            # watch out for infinite loops
-            r_idx = np.random.randint(0, len(seq))
-        base_nt = seq[r_idx]
-        mut_nts = [x for x in nts if x != base_nt]
-        mut_nt = np.random.choice(mut_nts)
-        mutated_seq[r_idx] = mut_nt
-        positions_used.append(r_idx)
-    mutated_seq = ''.join(mutated_seq)  # back to string
-    return mutated_seq, positions_used
-
-
-def generate_network(base_seq: str, n_muts_per: int, n_variants_away: int):
-    """
-    Generate a neutral network from the given parameters using Plotly and
-    networkx
-    :param base_seq: str, the original genome sequence
-    :param n_muts_per: int, number of new nodes we attach to each node in
-        perimeter
-    :param n_variants_away: int,  max number of mutations from source before
-        stopping
-    :return: None
-    """
-    g = nx.Graph()
-    # node[0] = seq, node[1] = n_muts away
+    synom_df = generate_synom_df()
     base_node = (base_seq, 0)
     q = queue.Queue()
     q.put(base_node)
@@ -153,19 +111,29 @@ def generate_network(base_seq: str, n_muts_per: int, n_variants_away: int):
         seq = cur_node[0]
         cur_muts = cur_node[1]
         i = cur_muts + 1
-        if i > n_variants_away:
+        if i > n_jumps:
             break
         excluded_pos = []
-        for j in range(n_muts_per):
-            # 1 mutation away from current seq == i+1 away from base
-            mut_seq, chosen_positions = generate_mut(seq, 1, excluded_pos)
-            excluded_pos = excluded_pos + chosen_positions
+        for _ in range(nodes_per_jump):
+            mut_seq, idx = generate_synom_mut(seq, synom_df, excluded_pos)
             mut_node = (mut_seq, i)
-            g.add_edge(cur_node, mut_node)
+            net.add_edge(cur_node, mut_node)
             q.put(mut_node)
+            excluded_pos.append(idx)
+    return net
 
+
+def generate_network(base_seq: str, n_jumps: int, nodes_per_jump: int):
+    """
+    Generate a neutral network from the given parameters using Plotly and
+    networkx
+    :param base_seq: str, the original genome sequence
+    :param n_jumps: int, number of jumps
+    :param nodes_per_jump: int, mutations for each jump
+    :return: None
+    """
+    g = generate_neutral_net(base_seq, n_jumps, nodes_per_jump)
     pos_ = nx.spring_layout(g)
-    seqs = [x[0] for x in g.nodes]
     # For each edge, make an edge_trace, append to list
     edge_x = []
     edge_y = []
@@ -240,9 +208,5 @@ def generate_network(base_seq: str, n_muts_per: int, n_variants_away: int):
 
 
 if __name__ == "__main__":
-    # generate_network("ACGTACGGTAAG", 3, 4)
-    seq = "ACGTACGGTAAG"
-    synom_df = generate_synom_df()
-    mut, idx = generate_synom_mut(seq, synom_df)
-    print(seq)
-    print(mut, idx)
+    seq1 = load_covid_seq("../data/covid_seq.fasta")
+    generate_network(seq1, 4, 3)
