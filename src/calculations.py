@@ -1,7 +1,7 @@
 import pandas as pd
 import itertools
 import numpy as np
-from utils import load_covid_seq
+from utils import load_fasta_seq
 
 """
 @author Jack Ringer
@@ -61,7 +61,7 @@ def cov19_nt_freqs(fasta_pth: str):
     :param fasta_pth: path to .fasta file containing Covid-19 genome.
     :return: dict, where dict[nt] = frequency of nt in genome
     """
-    genome = load_covid_seq(fasta_pth)
+    genome = load_fasta_seq(fasta_pth)
     genome_len = len(genome)
     freqs = {}
     total = 0

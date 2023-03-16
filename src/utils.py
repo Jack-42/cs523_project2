@@ -6,7 +6,7 @@ Description:
 """
 
 
-def load_covid_seq(fasta_path: str):
+def load_fasta_seq(fasta_path: str):
     with open(fasta_path) as f:
         lines = f.readlines()
         lines = lines[1:]  # exclude header

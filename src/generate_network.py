@@ -1,3 +1,4 @@
+import networkx
 import pandas as pd
 import itertools
 import plotly.graph_objects as go
@@ -5,7 +6,7 @@ import networkx as nx
 import numpy as np
 import queue
 
-from utils import load_covid_seq
+from utils import load_fasta_seq
 
 """
 @author Jack Ringer
@@ -65,6 +66,29 @@ def get_codon(seq: str, i: int):
     return seq[codon_index: codon_index + 3]
 
 
+def generate_mut(seq: str, exclude_pos=[]):
+    """
+    Generate a mutated sequence from the input.
+    :param seq: str, the base sequence
+    :param exclude_pos: list(optional), positions to not apply
+        any mutation to
+    :return: str, the mutated sequence
+    """
+    nts = ["A", "C", "G", "T"]
+    r_idx = np.random.randint(0, len(seq))
+    mutated_seq = list(seq)
+    while r_idx in exclude_pos:
+        # this is a bad way to prevent the same position from being mutated
+        # watch out for infinite loops
+        r_idx = np.random.randint(0, len(seq))
+    base_nt = seq[r_idx]
+    mut_nts = [x for x in nts if x != base_nt]
+    mut_nt = np.random.choice(mut_nts)
+    mutated_seq[r_idx] = mut_nt
+    mutated_seq = ''.join(mutated_seq)  # back to string
+    return mutated_seq, r_idx
+
+
 def generate_synom_mut(seq: str, synom_df: pd.DataFrame, exclude_pos=None):
     """
     Generate a synonymous mutation for the given sequence.
@@ -90,7 +114,8 @@ def generate_synom_mut(seq: str, synom_df: pd.DataFrame, exclude_pos=None):
     mut_nt = sub_df["Mutation"].sample(n=1).iloc[0]
     mutated_seq[r_idx] = mut_nt
     mutated_seq = ''.join(mutated_seq)  # back to string
-    return mutated_seq, r_idx
+    mut_code = "%s%d%s" % (seq[r_idx], r_idx, mut_nt)
+    return mutated_seq, r_idx, mut_code
 
 
 def generate_neutral_net(base_seq: str, n_jumps: int, nodes_per_jump: int):
@@ -115,15 +140,15 @@ def generate_neutral_net(base_seq: str, n_jumps: int, nodes_per_jump: int):
             break
         excluded_pos = []
         for _ in range(nodes_per_jump):
-            mut_seq, idx = generate_synom_mut(seq, synom_df, excluded_pos)
-            mut_node = (mut_seq, i)
+            mut_seq, idx, mut_code = generate_synom_mut(seq, synom_df, excluded_pos)
+            mut_node = (mut_seq, i, mut_code)
             net.add_edge(cur_node, mut_node)
             q.put(mut_node)
             excluded_pos.append(idx)
     return net
 
 
-def generate_network(base_seq: str, n_jumps: int, nodes_per_jump: int):
+def show_neutral_network(base_seq: str, n_jumps: int, nodes_per_jump: int):
     """
     Generate a neutral network from the given parameters using Plotly and
     networkx
@@ -205,8 +230,40 @@ def generate_network(base_seq: str, n_jumps: int, nodes_per_jump: int):
                                    showticklabels=False))
                     )
     fig.show()
+    return g
+
+
+def get_edge_mutations(net: networkx.Graph, n_jumps: int, mut_per_node: int):
+    """
+    Get a list of mutations generated at the edge of the neutral network.
+    :param net: networkx.Graph, neutral network
+    :param n_jumps: int, the number of jumps we performed in the network
+    :param mut_per_node: int, the number of mutated sequences to generate from each edge node
+    :return: list of edge mutations
+    """
+    # get edge nodes in neutral net
+    edge_q = queue.Queue()
+    for node in net.nodes():
+        if node[1] == n_jumps:
+            edge_q.put(node)
+    # generate mutations
+    edge_muts = []
+    while not (edge_q.empty()):
+        cur_node = edge_q.get()
+        seq = cur_node[0]
+        cur_muts = cur_node[1]
+        i = cur_muts + 1
+        excluded_pos = []
+        for _ in range(mut_per_node):
+            mut_seq, idx = generate_mut(seq, excluded_pos)
+            mut_node = (mut_seq, i)
+            edge_muts.append(mut_node)
+            excluded_pos.append(idx)
+    return edge_muts
 
 
 if __name__ == "__main__":
-    seq1 = load_covid_seq("../data/covid_seq.fasta")
-    generate_network(seq1, 4, 3)
+    seq1 = load_fasta_seq("../data/covid_spike_protein.fasta")
+    n_jumps1 = 4
+    nodes_per_jump1 = 2
+    neutral_net = show_neutral_network(seq1, n_jumps1, nodes_per_jump1)
