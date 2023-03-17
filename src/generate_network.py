@@ -6,14 +6,13 @@ import networkx as nx
 import numpy as np
 import queue
 
-from utils import load_fasta_seq
+from utils import load_fasta_seq, load_codon_whl
 
 """
 @author Jack Ringer
 Date: 3/5/2023
 Description:
-    Script used to generate neutral network and to display a random
-    walk from the network (part 2).
+    Script used to generate and show a neutral network (part 2).
 """
 
 
@@ -66,7 +65,7 @@ def get_codon(seq: str, i: int):
     return seq[codon_index: codon_index + 3]
 
 
-def generate_mut(seq: str, exclude_pos=[]):
+def generate_mut(seq: str, exclude_pos=None):
     """
     Generate a mutated sequence from the input.
     :param seq: str, the base sequence
@@ -74,6 +73,8 @@ def generate_mut(seq: str, exclude_pos=[]):
         any mutation to
     :return: str, the mutated sequence
     """
+    if exclude_pos is None:
+        exclude_pos = []
     nts = ["A", "C", "G", "T"]
     r_idx = np.random.randint(0, len(seq))
     mutated_seq = list(seq)
@@ -87,6 +88,17 @@ def generate_mut(seq: str, exclude_pos=[]):
     mutated_seq[r_idx] = mut_nt
     mutated_seq = ''.join(mutated_seq)  # back to string
     return mutated_seq, r_idx
+
+
+def get_mut_code(base_seq: str, mut_seq: str, nt_idx: int, codon_df: pd.DataFrame):
+    base_cdn = get_codon(base_seq, nt_idx)
+    base_acid = codon_df[codon_df["Codon"] == base_cdn]["Letter"].iloc[0]
+    mut_cdn = get_codon(mut_seq, nt_idx)
+    mut_acid = codon_df[codon_df["Codon"] == mut_cdn]["Letter"].iloc[0]
+    acid_idx = (nt_idx - (nt_idx % 3)) / 3
+    acid_idx += 1  # 1-indexing used by Bloom calculator
+    mut_code = "%s%d%s" % (base_acid, acid_idx, mut_acid)
+    return mut_code
 
 
 def generate_synom_mut(seq: str, synom_df: pd.DataFrame, exclude_pos=None):
@@ -131,6 +143,7 @@ def generate_neutral_net(base_seq: str, n_jumps: int, nodes_per_jump: int):
     base_node = (base_seq, 0)
     q = queue.Queue()
     q.put(base_node)
+    excluded_pos = []
     while not (q.empty()):
         cur_node = q.get()
         seq = cur_node[0]
@@ -138,7 +151,6 @@ def generate_neutral_net(base_seq: str, n_jumps: int, nodes_per_jump: int):
         i = cur_muts + 1
         if i > n_jumps:
             break
-        excluded_pos = []
         for _ in range(nodes_per_jump):
             mut_seq, idx, mut_code = generate_synom_mut(seq, synom_df, excluded_pos)
             mut_node = (mut_seq, i, mut_code)
@@ -233,12 +245,14 @@ def show_neutral_network(base_seq: str, n_jumps: int, nodes_per_jump: int):
     return g
 
 
-def get_edge_mutations(net: networkx.Graph, n_jumps: int, mut_per_node: int):
+def get_edge_mutations(net: networkx.Graph, base_seq: str, n_jumps: int, mut_per_node: int, codon_df: pd.DataFrame):
     """
     Get a list of mutations generated at the edge of the neutral network.
     :param net: networkx.Graph, neutral network
+    :param base_seq: str, the original genome (no mutation)
     :param n_jumps: int, the number of jumps we performed in the network
     :param mut_per_node: int, the number of mutated sequences to generate from each edge node
+    :param codon_df: pd.DataFrame, dataframe containing codon wheel info
     :return: list of edge mutations
     """
     # get edge nodes in neutral net
@@ -251,19 +265,35 @@ def get_edge_mutations(net: networkx.Graph, n_jumps: int, mut_per_node: int):
     while not (edge_q.empty()):
         cur_node = edge_q.get()
         seq = cur_node[0]
-        cur_muts = cur_node[1]
-        i = cur_muts + 1
         excluded_pos = []
         for _ in range(mut_per_node):
             mut_seq, idx = generate_mut(seq, excluded_pos)
-            mut_node = (mut_seq, i)
-            edge_muts.append(mut_node)
+            mut_code = get_mut_code(base_seq, mut_seq, idx, codon_df)
+            edge_muts.append(mut_code)
             excluded_pos.append(idx)
     return edge_muts
 
 
-if __name__ == "__main__":
-    seq1 = load_fasta_seq("../data/covid_spike_protein.fasta")
+def main():
+    # for reproducibility
+    np.random.seed(42)
+
+    # generate network for spike protein
+    seq1 = load_fasta_seq("../data/cov_spike_nt_genome.fasta")
+    codon_whl = load_codon_whl("../data/codons.txt")
     n_jumps1 = 4
     nodes_per_jump1 = 2
     neutral_net = show_neutral_network(seq1, n_jumps1, nodes_per_jump1)
+    edge_muts = get_edge_mutations(neutral_net, seq1, n_jumps1, nodes_per_jump1, codon_whl)
+
+    # save data
+    networkx.write_adjlist(neutral_net, "../results/neutral_net.adjlist")
+    np.save("../results/neutral_net_edgemuts.npy", edge_muts)
+
+
+if __name__ == "__main__":
+    main()
+    # for loading in data
+    edge_muts = np.load("../results/neutral_net_edgemuts.npy", allow_pickle=True)
+    print(edge_muts)
+    # neutral_net = networkx.read_adjlist("../results/neutral_net.adjlist")
