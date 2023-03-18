@@ -48,7 +48,8 @@ def generate_synom_df() -> pd.DataFrame:
                     base_codons.append(base_codon)
                     mut_nts.append(mutant)
                     positions.append(i)
-    mp_df = pd.DataFrame({"BaseCodon": base_codons, "Mutation": mut_nts, "Position": positions})
+    mp_df = pd.DataFrame(
+        {"BaseCodon": base_codons, "Mutation": mut_nts, "Position": positions})
     # remove duplicates
     mp_df = mp_df.drop_duplicates()
     return mp_df
@@ -90,7 +91,8 @@ def generate_mut(seq: str, exclude_pos=None):
     return mutated_seq, r_idx
 
 
-def get_mut_code(base_seq: str, mut_seq: str, nt_idx: int, codon_df: pd.DataFrame):
+def get_mut_code(base_seq: str, mut_seq: str, nt_idx: int,
+                 codon_df: pd.DataFrame):
     base_cdn = get_codon(base_seq, nt_idx)
     base_acid = codon_df[codon_df["Codon"] == base_cdn]["Letter"].iloc[0]
     mut_cdn = get_codon(mut_seq, nt_idx)
@@ -119,7 +121,8 @@ def generate_synom_mut(seq: str, synom_df: pd.DataFrame, exclude_pos=None):
         # this is a bad way to prevent the same position from being mutated
         # watch out for infinite loops
         return generate_synom_mut(seq, synom_df, exclude_pos)
-    sub_df = synom_df.loc[(synom_df["BaseCodon"] == base_cdn) & (synom_df["Position"] == (r_idx % 3))]
+    sub_df = synom_df.loc[(synom_df["BaseCodon"] == base_cdn) & (
+            synom_df["Position"] == (r_idx % 3))]
     if len(sub_df) == 0:
         # watch out for infinite loops
         return generate_synom_mut(seq, synom_df, exclude_pos)
@@ -152,7 +155,8 @@ def generate_neutral_net(base_seq: str, n_jumps: int, nodes_per_jump: int):
         if i > n_jumps:
             break
         for _ in range(nodes_per_jump):
-            mut_seq, idx, mut_code = generate_synom_mut(seq, synom_df, excluded_pos)
+            mut_seq, idx, mut_code = generate_synom_mut(seq, synom_df,
+                                                        excluded_pos)
             mut_node = (mut_seq, i, mut_code)
             net.add_edge(cur_node, mut_node)
             q.put(mut_node)
@@ -245,7 +249,8 @@ def show_neutral_network(base_seq: str, n_jumps: int, nodes_per_jump: int):
     return g
 
 
-def get_edge_mutations(net: networkx.Graph, base_seq: str, n_jumps: int, mut_per_node: int, codon_df: pd.DataFrame):
+def get_edge_mutations(net: networkx.Graph, base_seq: str, n_jumps: int,
+                       mut_per_node: int, codon_df: pd.DataFrame):
     """
     Get a list of mutations generated at the edge of the neutral network.
     :param net: networkx.Graph, neutral network
@@ -284,7 +289,9 @@ def main():
     n_jumps1 = 4
     nodes_per_jump1 = 2
     neutral_net = show_neutral_network(seq1, n_jumps1, nodes_per_jump1)
-    edge_muts = get_edge_mutations(neutral_net, seq1, n_jumps1, nodes_per_jump1, codon_whl)
+    edge_muts = get_edge_mutations(neutral_net, seq1, n_jumps1,
+                                   nodes_per_jump1,
+                                   codon_whl)
 
     # save data
     networkx.write_adjlist(neutral_net, "../results/neutral_net.adjlist")
@@ -294,6 +301,8 @@ def main():
 if __name__ == "__main__":
     main()
     # for loading in data
-    edge_muts = np.load("../results/neutral_net_edgemuts.npy", allow_pickle=True)
-    print(edge_muts)
+    edge_muts1 = np.load("../results/neutral_net_edgemuts.npy",
+                         allow_pickle=True)
+    print(len(edge_muts1))
+    print(edge_muts1)
     # neutral_net = networkx.read_adjlist("../results/neutral_net.adjlist")
