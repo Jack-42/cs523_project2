@@ -66,14 +66,20 @@ def get_codon(seq: str, i: int):
     return seq[codon_index: codon_index + 3]
 
 
-def generate_mut(seq: str, exclude_pos=None):
+def generate_mut(seq: str, codon_df: pd.DataFrame, mut_type: str = "any",
+                 exclude_pos=None):
     """
     Generate a mutated sequence from the input.
     :param seq: str, the base sequence
+    :param mut_type: str, one of "synonymous", "nonsynonymous", or "any"
+    :param codon_df: pd.DataFrame, contains mapping of codons to amino acids
     :param exclude_pos: list(optional), positions to not apply
         any mutation to
     :return: str, the mutated sequence
     """
+    if mut_type not in ["synonymous", "nonsynonymous", "any"]:
+        raise ValueError(
+            "argument 'mut_type' must be one of the following: 'synonymous', 'nonsynonymous', 'any'")
     if exclude_pos is None:
         exclude_pos = []
     nts = ["A", "C", "G", "T"]
@@ -88,11 +94,27 @@ def generate_mut(seq: str, exclude_pos=None):
     mut_nt = np.random.choice(mut_nts)
     mutated_seq[r_idx] = mut_nt
     mutated_seq = ''.join(mutated_seq)  # back to string
-    return mutated_seq, r_idx
+    mut_code = get_mut_code(seq, mutated_seq, r_idx, codon_df)
+    if mut_type == "any":
+        return mutated_seq, r_idx, mut_code
+    elif mut_type == "synonymous" and mut_code[0] == mut_code[-1]:
+        return mutated_seq, r_idx, mut_code
+    elif mut_type == "nonsynonymous" and mut_code[0] != mut_code[-1]:
+        return mutated_seq, r_idx, mut_code
+    # try again
+    return generate_mut(seq, codon_df, mut_type, exclude_pos)
 
 
 def get_mut_code(base_seq: str, mut_seq: str, nt_idx: int,
                  codon_df: pd.DataFrame):
+    """
+    Generate mutation code (base aa, idx, mut aa) for a mutation.
+    :param base_seq: str, the base sequence
+    :param mut_seq: str, the mutated sequence
+    :param nt_idx: int, the index where the mutation occurred
+    :param codon_df: pd.DataFrame, mapping of codons to amino acids
+    :return: str, the mutation code
+    """
     base_cdn = get_codon(base_seq, nt_idx)
     base_acid = codon_df[codon_df["Codon"] == base_cdn]["Letter"].iloc[0]
     mut_cdn = get_codon(mut_seq, nt_idx)
@@ -103,46 +125,17 @@ def get_mut_code(base_seq: str, mut_seq: str, nt_idx: int,
     return mut_code
 
 
-def generate_synom_mut(seq: str, synom_df: pd.DataFrame, exclude_pos=None):
-    """
-    Generate a synonymous mutation for the given sequence.
-    :param seq: str, genome
-    :param synom_df: pd.DataFrame, output of generate_synom_df()
-    :param exclude_pos: list (optional), positions mutation not allowed for
-    :return: str, mutated (but synonymous) genome
-    """
-    # about 1/4 of mutations are synonymous
-    if exclude_pos is None:
-        exclude_pos = []
-    mutated_seq = list(seq)
-    r_idx = np.random.randint(0, len(seq))
-    base_cdn = get_codon(seq, r_idx)
-    if r_idx in exclude_pos:
-        # this is a bad way to prevent the same position from being mutated
-        # watch out for infinite loops
-        return generate_synom_mut(seq, synom_df, exclude_pos)
-    sub_df = synom_df.loc[(synom_df["BaseCodon"] == base_cdn) & (
-            synom_df["Position"] == (r_idx % 3))]
-    if len(sub_df) == 0:
-        # watch out for infinite loops
-        return generate_synom_mut(seq, synom_df, exclude_pos)
-    mut_nt = sub_df["Mutation"].sample(n=1).iloc[0]
-    mutated_seq[r_idx] = mut_nt
-    mutated_seq = ''.join(mutated_seq)  # back to string
-    mut_code = "%s%d%s" % (seq[r_idx], r_idx, mut_nt)
-    return mutated_seq, r_idx, mut_code
-
-
-def generate_neutral_net(base_seq: str, n_jumps: int, nodes_per_jump: int):
+def generate_neutral_net(base_seq: str, n_jumps: int, nodes_per_jump: int,
+                         codon_df: pd.DataFrame):
     """
     Generate a neutral network with a given number of jumps
     :param base_seq: str, the base genome
     :param n_jumps: int, number of jumps
     :param nodes_per_jump: int, mutations for each jump
+    :param codon_df: pd.DataFrame, contains mapping of codons to amino acids
     :return: nx.Graph object representing the neutral network
     """
     net = nx.Graph()
-    synom_df = generate_synom_df()
     base_node = (base_seq, 0)
     q = queue.Queue()
     q.put(base_node)
@@ -155,8 +148,9 @@ def generate_neutral_net(base_seq: str, n_jumps: int, nodes_per_jump: int):
         if i > n_jumps:
             break
         for _ in range(nodes_per_jump):
-            mut_seq, idx, mut_code = generate_synom_mut(seq, synom_df,
-                                                        excluded_pos)
+            # generate mutation 1-step away from cur_node
+            mut_seq, idx, mut_code = generate_mut(seq, codon_df, "synonymous",
+                                                  excluded_pos)
             mut_node = (mut_seq, i, mut_code)
             net.add_edge(cur_node, mut_node)
             q.put(mut_node)
@@ -164,16 +158,18 @@ def generate_neutral_net(base_seq: str, n_jumps: int, nodes_per_jump: int):
     return net
 
 
-def show_neutral_network(base_seq: str, n_jumps: int, nodes_per_jump: int):
+def show_neutral_network(base_seq: str, n_jumps: int, nodes_per_jump: int,
+                         codon_whl: pd.DataFrame):
     """
     Generate a neutral network from the given parameters using Plotly and
     networkx
     :param base_seq: str, the original genome sequence
     :param n_jumps: int, number of jumps
     :param nodes_per_jump: int, mutations for each jump
-    :return: None
+    :param codon_whl: pd.DataFrame, contains mapping of codons to amino acids
+    :return: nx.Graph object representing the neutral network
     """
-    g = generate_neutral_net(base_seq, n_jumps, nodes_per_jump)
+    g = generate_neutral_net(base_seq, n_jumps, nodes_per_jump, codon_whl)
     pos_ = nx.spring_layout(g)
     # For each edge, make an edge_trace, append to list
     edge_x = []
@@ -272,8 +268,9 @@ def get_edge_mutations(net: networkx.Graph, base_seq: str, n_jumps: int,
         seq = cur_node[0]
         excluded_pos = []
         for _ in range(mut_per_node):
-            mut_seq, idx = generate_mut(seq, excluded_pos)
-            mut_code = get_mut_code(base_seq, mut_seq, idx, codon_df)
+            # generate mutation 1-step away from cur_node
+            mut_seq, idx, mut_code = generate_mut(seq, codon_df,
+                                                  "nonsynonymous", excluded_pos)
             edge_muts.append(mut_code)
             excluded_pos.append(idx)
     return edge_muts
@@ -281,14 +278,15 @@ def get_edge_mutations(net: networkx.Graph, base_seq: str, n_jumps: int,
 
 def main():
     # for reproducibility
-    np.random.seed(42)
+    np.random.seed(43)
 
     # generate network for spike protein
     seq1 = load_fasta_seq("../data/cov_spike_nt_genome.fasta")
     codon_whl = load_codon_whl("../data/codons.txt")
     n_jumps1 = 4
     nodes_per_jump1 = 2
-    neutral_net = show_neutral_network(seq1, n_jumps1, nodes_per_jump1)
+    neutral_net = show_neutral_network(seq1, n_jumps1, nodes_per_jump1,
+                                       codon_whl)
     edge_muts = get_edge_mutations(neutral_net, seq1, n_jumps1,
                                    nodes_per_jump1,
                                    codon_whl)
@@ -300,6 +298,10 @@ def main():
 
 if __name__ == "__main__":
     main()
+    escape_data_csv = "../data/escape_calculator_data.csv"
+    escape_df = pd.read_csv(escape_data_csv)
+    escape_sites = np.array(set(escape_df['site']))
+    print(escape_sites)
     # for loading in data
     edge_muts1 = np.load("../results/neutral_net_edgemuts.npy",
                          allow_pickle=True)
