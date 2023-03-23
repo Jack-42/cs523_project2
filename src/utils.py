@@ -1,4 +1,7 @@
 import pandas as pd
+import numpy as np
+
+from binding_calculator import BindingCalculator
 
 """
 @author Jack Ringer
@@ -53,6 +56,32 @@ def acid_seq_to_genome(seq: str, save_path: str = None, label: str = ""):
     return nt_genome
 
 
+def generate_bloom_sites(save_path: str):
+    """
+    Generate list of sites where data is available for the bloom calculator for
+    any given virus.
+    :param save_path: str, path to save list to
+    :return: list, list of sites
+    """
+    escape_data_csv = "../data/escape_calculator_data.csv"
+    edge_muts = np.load("../results/neutral_net_edgemuts.npy",
+                        allow_pickle=True)
+    edge_sites = set(list(map(lambda mut_code: int(mut_code[1:-1]), edge_muts)))
+    # antibodies = ['BA.2.75', 'BQ.1.1', 'BA.2', 'XBB', 'BA.1', 'BA.5', 'D614G']
+    viruses = ['pre-Omicron SARS-CoV-2', 'SARS-CoV-1 then SARS-CoV-2',
+               'pre-Omicron SARS-CoV-2 then BA.2',
+               'pre-Omicron SARS-CoV-2 then BA.5', 'SARS-CoV-2',
+               'pre-Omicron SARS-CoV-2 then BA.1']
+    # use only sites with data
+    valid_sites = set(np.arange(0, 10000))
+    for vir in viruses:
+        cal = BindingCalculator(csv_or_url=escape_data_csv,
+                                eliciting_virus=vir)
+        valid_sites = valid_sites & set(cal.sites)
+    valid_sites = list(valid_sites)
+    np.save(save_path, valid_sites)
+    return valid_sites
+
+
 if __name__ == "__main__":
-    seq1 = load_fasta_seq("../data/covid_spike_protein.fasta")
-    g = acid_seq_to_genome(seq1, "../data/cov_spike_nt_genome.fasta", "Covid-19 Spike Protein")
+    generate_bloom_sites("../results/bloom_valid_sites.npy")
