@@ -14,15 +14,26 @@ Description:
 """
 
 
-def calculate_difs(df: pd.DataFrame, viruses: list, edge_sites: list):
-    rel_table = np.zeros((len(edge_sites), len(edge_sites)))
+def get_diff_table(df: pd.DataFrame, edge_sites: list):
+    diff_table = np.zeros((len(edge_sites), len(edge_sites)))
     for i in range(len(edge_sites)):
         site1 = edge_sites[i]
         for j in range(len(edge_sites)):
             site2 = edge_sites[j]
             diffs = np.abs(df.loc[site1] - df.loc[site2])  # arr of diffs
-            rel_table[i, j] = diffs.mean()  # averaged difference
-    return rel_table
+            diff_table[i, j] = diffs.mean()  # averaged difference
+    return diff_table
+
+
+def to_titer_table(diff_table: np.ndarray, denom=0.001):
+    # first convert to distance table
+    save_divide_vect = np.vectorize(lambda x: x / denom)
+    col_bases = np.max(diff_table, axis=1)
+    print(col_bases)
+    dist_table = save_divide_vect(diff_table)
+    print(dist_table)
+    tit_table = np.vectorize(lambda x: 1.0 / (x + denom))(diff_table)
+    print(tit_table)
 
 
 def get_valid_sites(virus: str, csv_pth: str):
@@ -59,12 +70,15 @@ def main(save_path: str):
     table = {}
     for vir in viruses:
         table[vir] = get_ebs(vir, escape_data_csv, edge_sites)
+        table[vir].append(1.0)  # add binding for original genome
     print(table)
     df = pd.DataFrame(table)
-    df['antigen'] = edge_sites
+    sites = edge_sites + [-1]
+    df['antigen'] = sites
     df = df.set_index('antigen')
-    r_table = calculate_difs(df, viruses, edge_sites)
-    print(r_table)
+    diff_table = get_diff_table(df, sites)
+    print(diff_table)
+    to_titer_table(diff_table)
     return table
 
 
