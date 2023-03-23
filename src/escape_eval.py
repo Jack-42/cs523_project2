@@ -25,15 +25,15 @@ def get_diff_table(df: pd.DataFrame, edge_sites: list):
     return diff_table
 
 
-def to_titer_table(diff_table: np.ndarray, denom=0.001):
+def to_titer_table(diff_table: np.ndarray, col_base=10):
     # first convert to distance table
-    save_divide_vect = np.vectorize(lambda x: x / denom)
-    col_bases = np.max(diff_table, axis=1)
-    print(col_bases)
-    dist_table = save_divide_vect(diff_table)
-    print(dist_table)
-    tit_table = np.vectorize(lambda x: 1.0 / (x + denom))(diff_table)
-    print(tit_table)
+    dist_table = np.vectorize(lambda x: x * col_base)(diff_table)
+    # log titer = column base - distance
+    log_titer_table = np.vectorize(lambda x: col_base - x)(dist_table)
+    # log titer = log_2(titer / 10) => titer = 10 * (2 ^ (log titer) )
+    titer_table = np.vectorize(lambda x: 10 * (2 ** x))(log_titer_table)
+    titer_table = np.round(titer_table, decimals=0)  # round to integer vals
+    return titer_table
 
 
 def get_valid_sites(virus: str, csv_pth: str):
@@ -66,22 +66,21 @@ def main(save_path: str):
         edge_sites = edge_sites & valid_sites
     edge_sites = list(edge_sites)
     # create 1 table for each site mutation
-    print(edge_sites)
     table = {}
     for vir in viruses:
         table[vir] = get_ebs(vir, escape_data_csv, edge_sites)
-        table[vir].append(1.0)  # add binding for original genome
-    print(table)
     df = pd.DataFrame(table)
-    sites = edge_sites + [-1]
-    df['antigen'] = sites
+    df['antigen'] = edge_sites
     df = df.set_index('antigen')
-    diff_table = get_diff_table(df, sites)
-    print(diff_table)
-    to_titer_table(diff_table)
-    return table
+    diff_table = get_diff_table(df, edge_sites)
+    titer_table = to_titer_table(diff_table)
+    titer_df = pd.DataFrame(titer_table, columns=edge_sites)
+    titer_df['antigen'] = edge_sites
+    titer_df = titer_df.set_index('antigen')
+    titer_df.to_csv(save_path, index=True)
+    return titer_table
 
 
 if __name__ == "__main__":
-    save_pth = "../results/escape_distance_table.csv"
+    save_pth = "../results/edge_titer_table.csv"
     main(save_pth)
