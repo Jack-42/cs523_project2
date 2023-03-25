@@ -26,7 +26,8 @@ def get_fitness(fitness_df: pd.DataFrame, mut_code: str):
     return best_entry["fitness"]
 
 
-def main():
+def main(save_pth: str):
+    assert save_pth.endswith(".csv"), "Check save_pth"
     # from:
     # https://github.com/jbloomlab/SARS2-mut-fitness/blob/main/data/Neher_aa_fitness.csv
     fitness_df = pd.read_csv("../data/aa_fitness.csv")
@@ -37,8 +38,12 @@ def main():
     mut_fn = lambda mut_code: get_fitness(fitness_df, mut_code)
     edge_fitnesses = list(map(mut_fn, edge_muts))
     mut_fit_mp = dict(zip(edge_muts, edge_fitnesses))
-    print(mut_fit_mp)
+    mut_fit_df = pd.DataFrame(mut_fit_mp.items(), columns=["Mutation", "Fitness"])
+    mut_fit_df = mut_fit_df.sort_values(by="Fitness")
+    mut_fit_df = mut_fit_df.dropna()  # values not found by fitness calculator
+    mut_fit_df.to_csv(save_pth, index=False)
+    print("Saved fitness info to:", save_pth)
 
 
 if __name__ == "__main__":
-    main()
+    main("../results/edge_fitness.csv")

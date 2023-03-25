@@ -206,7 +206,7 @@ def show_neutral_network(base_seq: str, n_jumps: int, nodes_per_jump: int,
 
     fig = go.Figure(data=[edge_trace, node_trace],
                     layout=go.Layout(
-                        title='Subspace of Neutral Network for COVID-19 Spike Protein',
+                        title='Sample of Neutral Network for COVID-19 Spike Protein',
                         titlefont_size=16,
                         showlegend=False,
                         hovermode='closest',
