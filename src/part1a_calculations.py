@@ -7,7 +7,7 @@ from utils import load_fasta_seq
 @author Jack Ringer
 Date: 3/2/2023
 Description:
-    File containing various calculations used for the report.
+    File containing various calculations used for part 1a of the assignment.
 """
 
 
@@ -70,8 +70,24 @@ def cov19_nt_freqs(fasta_pth: str):
         total += freqs[nt]
     assert total == 1.0
     df = pd.DataFrame(freqs.items(), columns=["Nucleotide", "Frequency"])
-    df.to_csv("../data/covid_freqs.csv", index=False)
+    df.to_csv("../results/covid_freqs.csv", index=False)
     return freqs
+
+
+def q2_main():
+    """
+    Script used to answer question 2 of part 1a on the report
+    :return:
+    """
+    n_muts = 89709
+    covid_freq_df = pd.read_csv("../results/covid_freqs.csv")
+    nonsynom_freq_df = pd.read_csv("../results/batch_non_synom_freqs.csv")
+    probs_sum = np.dot(covid_freq_df["Frequency"],
+                       nonsynom_freq_df["Frequency"])
+    non_synom_muts = np.round(n_muts * probs_sum, decimals=0)
+    synom_muts = n_muts - non_synom_muts
+    print("# of non-synonymous mutations:", non_synom_muts)
+    print("# of synonymous mutations:", synom_muts)
 
 
 if __name__ == "__main__":

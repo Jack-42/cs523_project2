@@ -64,9 +64,6 @@ def generate_bloom_sites(save_path: str):
     :return: list, list of sites
     """
     escape_data_csv = "../data/escape_calculator_data.csv"
-    edge_muts = np.load("../results/neutral_net_edgemuts.npy",
-                        allow_pickle=True)
-    edge_sites = set(list(map(lambda mut_code: int(mut_code[1:-1]), edge_muts)))
     # antibodies = ['BA.2.75', 'BQ.1.1', 'BA.2', 'XBB', 'BA.1', 'BA.5', 'D614G']
     viruses = ['pre-Omicron SARS-CoV-2', 'SARS-CoV-1 then SARS-CoV-2',
                'pre-Omicron SARS-CoV-2 then BA.2',
