@@ -7,7 +7,7 @@ our report for project 2 of CS 523.
 
 ### data dir
 The data directory contains data used as input for various parts of the project.
-The filenames and sources for each are provided by the table below.
+The filenames and sources for each are provided by the table below. (TODO)
 
 ### src dir
 The src directory contains scripts used to generate results for various
