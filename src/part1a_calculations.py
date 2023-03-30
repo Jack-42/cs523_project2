@@ -93,7 +93,7 @@ def cov19_rbd_nt_freqs(fasta_pth: str):
         total += freqs[nt]
     assert total == 1.0
     df = pd.DataFrame(freqs.items(), columns=["Nucleotide", "Frequency"])
-    df.to_csv("../data/covid_rbd_freqs.csv", index=False)
+    df.to_csv("../results/covid_rbd_freqs.csv", index=False)
     return freqs
 
 
@@ -116,8 +116,8 @@ def q2_main():
 if __name__ == "__main__":
     averaged_non_synom_freqs()
     # calc_non_synom_freqs()
-    freqs = cov19_nt_freqs("../data/covid_seq.fasta")
-    freqs_rbd = cov19_rbd_nt_freqs("../data/cov_spike_nt_genome.fasta")
+    freqs = cov19_nt_freqs("../results/covid_seq.fasta")
+    freqs_rbd = cov19_rbd_nt_freqs("../results/cov_spike_nt_genome.fasta")
 
     rounded_freqs = {k: np.round(v, decimals=4) for k, v in freqs.items()}
     rounded_rbd_freqs = {k: np.round(v, decimals=4) for k, v in freqs_rbd.items()}
