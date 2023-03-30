@@ -73,11 +73,37 @@ def cov19_nt_freqs(fasta_pth: str):
     df.to_csv("../data/covid_freqs.csv", index=False)
     return freqs
 
+def cov19_rbd_nt_freqs(fasta_pth: str):
+    """
+    Get frequency of nucleotides (nt) in original Covid-19 RBD. (same as above function with different path.)
+    :param fasta_pth: path to .fasta file containing Covid-19 RBD.
+    :return: dict, where dict[nt] = frequency of nt in genome
+    """
+
+    #first 1269 (0:1268) nt's are not part of it,
+    #the following 669 are the RBD
+
+    genome = load_fasta_seq(fasta_pth)
+    RBD_genome = genome[1269:1938]
+    print(genome_len)
+    freqs = {}
+    total = 0
+    for nt in ['A', 'C', 'T', 'G']:
+        freqs[nt] = RBD_genome.count(nt) / genome_len
+        total += freqs[nt]
+    assert total == 1.0
+    df = pd.DataFrame(freqs.items(), columns=["Nucleotide", "Frequency"])
+    df.to_csv("../data/covid_rbd_freqs.csv", index=False)
+    return freqs
+
 
 if __name__ == "__main__":
     averaged_non_synom_freqs()
     # calc_non_synom_freqs()
     freqs = cov19_nt_freqs("../data/covid_seq.fasta")
+    freqs_rbd = cov19_rbd_nt_freqs("../data/cov_spike_nt_genome.fasta")
 
     rounded_freqs = {k: np.round(v, decimals=4) for k, v in freqs.items()}
+    rounded_rbd_freqs = {k: np.round(v, decimals=4) for k, v in freqs_rbd.items()}
     print(rounded_freqs)
+    print(rounded_rbd_freqs)

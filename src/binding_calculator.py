@@ -242,4 +242,19 @@ class BindingCalculator:
 
 if __name__ == '__main__':
     binding_cal = BindingCalculator()
-    print(binding_cal.binding_retained([420]))
+    #print(binding_cal.binding_retained([420]))
+    sites = []
+    for site in binding_cal.escape_data['site']:
+        sites.append(site)
+
+    sites = [*set(sites)]
+    print(sites)
+
+    num = 0
+    print(len(sites))
+    for s in sites:
+        escape = binding_cal.binding_retained([s])
+        if (escape >= .90):
+            num += 1
+
+    print(num)
