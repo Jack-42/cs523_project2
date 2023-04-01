@@ -18,7 +18,6 @@ The filenames and sources for each are provided by the table below.
 | aa_fitness.csv                 |                     https://github.com/jbloomlab/SARS2-mut-fitness/tree/main/results/aa_fitness                     |
 | codons.txt                     |                                https://github.com/zhanxw/anno/blob/master/codon.txt                                 |
 | cov_spike_nt_genome.fasta      |                   generated from covid_spike_protein.fasta (see acid_seq_to_genome() in utils.py)                   |
-| covid_19_spike_raw.txt         |                                                      generated                                                      |
 | covid_rbd.fasta                |                                   https://www.ncbi.nlm.nih.gov/nuccore/MN908947.3                                   |
 | covid_rbd_freqs.csv            |                                       generated (see part1a_calculations.py)                                        |
 | covid_spike_protein.fasta      |                                   https://www.uniprot.org/uniprotkb/P0DTC2/entry                                    |
