@@ -73,6 +73,7 @@ def cov19_nt_freqs(fasta_pth: str):
     df.to_csv("../results/covid_freqs.csv", index=False)
     return freqs
 
+
 def cov19_rbd_nt_freqs(fasta_pth: str):
     """
     Get frequency of nucleotides (nt) in original Covid-19 RBD. (same as above function with different path.)
@@ -80,11 +81,12 @@ def cov19_rbd_nt_freqs(fasta_pth: str):
     :return: dict, where dict[nt] = frequency of nt in genome
     """
 
-    #first 1269 (0:1268) nt's are not part of it,
-    #the following 669 are the RBD
+    # first 1269 (0:1268) nt's are not part of it,
+    # the following 669 are the RBD
 
     genome = load_fasta_seq(fasta_pth)
     RBD_genome = genome[1269:1938]
+    genome_len = len(RBD_genome)
     print(genome_len)
     freqs = {}
     total = 0
