@@ -254,7 +254,7 @@ if __name__ == '__main__':
     print(len(sites))
     for s in sites:
         escape = binding_cal.binding_retained([s])
-        if (escape >= .90):
+        if (escape >= .94):
             num += 1
 
     print(num)
