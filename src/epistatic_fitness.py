@@ -36,11 +36,12 @@ def qc():
 
     sum = 0
 
-    for n in number_of_mutations:
-        freq = epistatic_genome_frequency(length, n,neutral_prob,epistasis_rate)
-        sum += freq
-        path_to_data = "../data/epistatic_genome_frequency.csv"
-        with open(path_to_data, 'a') as f:
+    path_to_data = "../data/epistatic_genome_frequency.csv"
+    with open(path_to_data, 'w') as f:
+        for n in number_of_mutations:
+            freq = epistatic_genome_frequency(length, n,neutral_prob,epistasis_rate)
+            sum += freq
+            
             print(str(n) + ',' + str(freq))
             f.write(str(n) + ',' + str(freq))
             f.write("\n")
