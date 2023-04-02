@@ -10,7 +10,7 @@ def epistatic_genome_frequency(length, number_of_mutations, neutral_prob, epista
     epistatic_prob = neutral_prob * epistasis_rate
     product = 1
     for k in range(0, number_of_mutations // 2):
-        N_k = (length - 2 * k) * (epistatic_prob) * (length - 2 * k + 1) * (1 - neutral_prob)
+        N_k = (length - (2 * k)) * (epistatic_prob) * (length - (2 * k) - 1) * (1 - neutral_prob)
         product *= N_k
 
     return product
